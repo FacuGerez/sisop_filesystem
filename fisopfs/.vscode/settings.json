@@ -5,6 +5,8 @@
         "string.h": "c",
         "defs.h": "c",
         "file.h": "c",
-        "types.h": "c"
+        "types.h": "c",
+        "stdbool.h": "c",
+        "limits.h": "c"
     }
 }

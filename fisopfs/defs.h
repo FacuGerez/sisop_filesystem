@@ -22,13 +22,18 @@ typedef struct inodo_dir {
 typedef struct inodo {
 	inodo_file *file;  // Contenido del archivo o null si es un directorio
 	inodo_dir *dir;    // Contenido del directorio o null si es un archivo
-	int size;          // Tamaño del contenido
-	int nlinks;        // Número de enlaces duros
-	int atime;         // Último acceso
-	int mtime;         // Última modificación
-	int ctime;         // Último cambio de metadatos
 	                   // .....
+	// 👇 Campos necesarios para getattr:
+	mode_t mode;    // Tipo y permisos
+	nlink_t nlink;  // Número de enlaces (2 para directorio, 1 para archivo)
+	uid_t uid;      // UID del dueño (usualmente getuid())
+	gid_t gid;      // GID del grupo (usualmente getgid())
+	time_t atime;   // Último acceso
+	time_t mtime;   // Última modificación
+	time_t ctime;   // Creación
+	off_t size;     // Tamaño en bytes (para archivos) o 0 para directorios
 } inodo;
+
 /*
 typedef struct superblock {
     int inodes_count; // Número total de inodos

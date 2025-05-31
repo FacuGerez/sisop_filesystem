@@ -13,9 +13,9 @@
 
 static struct fuse_operations operations = {
 	.init = filesystem_init,
-	//.getattr = filesystem_getattr,
+	.getattr = filesystem_getattr,
 	.mkdir = filesystem_mkdir,
-	//.readdir = filesystem_readdir,
+	.readdir = filesystem_readdir,
 	//.unlink = filesystem_unlink,
 	//.rmdir = filesystem_rmdir,
 	//.create = filesystem_create,
