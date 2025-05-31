@@ -3,6 +3,8 @@
         "errno.h": "c",
         "stat.h": "c",
         "string.h": "c",
-        "defs.h": "c"
+        "defs.h": "c",
+        "file.h": "c",
+        "types.h": "c"
     }
 }

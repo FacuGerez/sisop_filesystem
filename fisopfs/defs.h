@@ -1,31 +1,34 @@
 #define CONTENT_SIZE 1024
-#define MAX_DENTRIES 100
+#define MAX_DENTRIES 128
 #define MAX_FILENAME 256
 #define DEFAULT_FILE_DISK "persistence_file.fisopfs"
 
+typedef struct inodo inodo;
+
 typedef struct dentry {
 	char nombre[MAX_FILENAME];
-	struct inodo_t *inodo;
-} dentry_t;
+	inodo *inodo;
+} dentry;
 
 typedef struct inodo_file {
 	char contenido[CONTENT_SIZE];
-} inodo_file_t;
+} inodo_file;
 
 typedef struct inodo_dir {
-	dentry_t *entries[MAX_DENTRIES];  // Entradas del directorio
-} inodo_dir_t;
+	dentry *entries[MAX_DENTRIES];  // Entradas del directorio
+	int size;                       // Número de entradas en el directorio
+} inodo_dir;
 
 typedef struct inodo {
-	inodo_file_t *file;  // Contenido del archivo o null si es un directorio
-	inodo_dir_t *dir;    // Contenido del directorio o null si es un archivo
-	int size;            // Tamaño del contenido
-	int nlinks;          // Número de enlaces duros
-	int atime;           // Último acceso
-	int mtime;           // Última modificación
-	int ctime;           // Último cambio de metadatos
-	                     // .....
-} inodo_t;
+	inodo_file *file;  // Contenido del archivo o null si es un directorio
+	inodo_dir *dir;    // Contenido del directorio o null si es un archivo
+	int size;          // Tamaño del contenido
+	int nlinks;        // Número de enlaces duros
+	int atime;         // Último acceso
+	int mtime;         // Última modificación
+	int ctime;         // Último cambio de metadatos
+	                   // .....
+} inodo;
 /*
 typedef struct superblock {
     int inodes_count; // Número total de inodos
@@ -37,10 +40,10 @@ typedef struct superblock {
 
 // El sistema de archivos desde la raiz
 typedef struct filesystem {
-	inodo_t *root;  // Inodo raíz del sistema de archivos
-} filesystem_t;
+	inodo *root;  // Inodo raíz del sistema de archivos
+} filesystem;
 
 
 // Variables globales
 char *filedisk = DEFAULT_FILE_DISK;
-filesystem_t fs;
+filesystem fs;
