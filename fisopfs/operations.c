@@ -289,3 +289,63 @@ filesystem_readdir(const char *path,
 
 	return EXIT_SUCCESS;  // Success
 }
+
+
+int
+filesystem_rmdir(const char *path)
+{
+	printf("Removing directory: %s\n", path);
+	// Remove the directory from its parent
+	inodo *parent = NULL;
+	char parent_path[PATH_MAX];
+	strncpy(parent_path, path, sizeof(parent_path));
+	char *last_slash = strrchr(parent_path, '/');
+	if (last_slash) {
+		*last_slash =
+		        '\0';  // Remove the last part to get the parent path
+	} else {
+		strcpy(parent_path, "/");  // If no slash, it's the root
+	}
+	last_slash++;
+
+	int ret = search_inodo(parent_path, &parent);
+	if (ret != EXIT_SUCCESS || !parent || !parent->dir) {
+		fprintf(stderr, "Error: Parent directory not found.\n");
+		return -ENOENT;  // No such file or directory
+	}
+	// Now search for the directory to remove
+	dentry *directory_to_remove = NULL;
+	for (int i = 0; i < parent->dir->size; i++) {
+		if (strcmp(parent->dir->entries[i]->nombre, last_slash) == 0) {
+			directory_to_remove = parent->dir->entries[i];
+			break;
+		}
+	}
+	if (directory_to_remove == NULL ||
+	    directory_to_remove->inodo->dir == NULL) {
+		fprintf(stderr, "Error: Directory not found: %s\n", last_slash);
+		return -ENOENT;  // No such file or directory
+	}
+	if (directory_to_remove->inodo->dir->size > 0) {
+		fprintf(stderr, "Error: Directory not empty: %s\n", last_slash);
+		return -ENOTEMPTY;  // Directory not empty
+	}
+	// Remove the directory entry from the parent
+	for (int i = 0; i < parent->dir->size; i++) {
+		if (parent->dir->entries[i] == directory_to_remove) {
+			// Shift the entries to remove the directory
+			for (int j = i; j < parent->dir->size - 1; j++) {
+				parent->dir->entries[j] =
+				        parent->dir->entries[j + 1];
+			}
+			parent->dir->entries[parent->dir->size - 1] =
+			        NULL;  // Clear the last entry
+			break;
+		}
+	}
+	parent->dir->size--;
+	free(directory_to_remove->inodo->dir);
+	free(directory_to_remove->inodo);
+	free(directory_to_remove);
+	return EXIT_SUCCESS;
+}
