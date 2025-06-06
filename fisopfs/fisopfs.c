@@ -1,15 +1,14 @@
 #define FUSE_USE_VERSION 30
 
 #include <fuse.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/file.h>
 #include <string.h>
-#include <stdlib.h>
-#include <errno.h>
-#include "operations.c"
+
+#include "defs.h"
+#include "operations.h"
+
+// Variables globales
+char *filedisk = DEFAULT_FILE_DISK;
+filesystem fs;
 
 static struct fuse_operations operations = {
 	.init = filesystem_init,
@@ -22,6 +21,7 @@ static struct fuse_operations operations = {
 	//.open = filesystem_open,
 	//.write = filesystem_write,
 	//.read = filesystem_read,
+	.destroy = filesystem_destroy,  // Called on flush.
 };
 
 int

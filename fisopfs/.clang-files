@@ -1,1 +1,8 @@
 fisopfs.c
+defs.h
+operations.c
+operations.h
+operations_wrappers.c
+operations_wrappers.h
+persistence.c
+persistence.h
