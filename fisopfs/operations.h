@@ -24,7 +24,7 @@ int filesystem_utimens(const char *path, const struct timespec tv[2]);
 
 int filesystem_create(const char *path, mode_t mode, struct fuse_file_info *fi);
 
-/*int filesystem_open(const char *path, struct fuse_file_info *fi);*/
+int filesystem_open(const char *path, struct fuse_file_info *fi);
 
 int filesystem_write(const char *path,
                      const char *buf,

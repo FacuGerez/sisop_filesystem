@@ -283,6 +283,13 @@ filesystem_readdir(const char *path,
 }
 
 int
+filesystem_unlink(const char *path)
+{
+	fprintf(stderr, "[debug] unlink not implemented");
+	return EXIT_FAILURE;
+}
+
+int
 filesystem_rmdir(const char *path)
 {
 	inode *parent = NULL;
@@ -337,7 +344,6 @@ filesystem_rmdir(const char *path)
 	free(directory_to_remove);
 	return EXIT_SUCCESS;
 }
-
 
 int
 filesystem_utimens(const char *path, const struct timespec tv[2])

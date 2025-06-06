@@ -2,3 +2,5 @@ fisopfs
 *.fisopfs
 *.o
 prueba/
+tests/output/
+tests/mount/

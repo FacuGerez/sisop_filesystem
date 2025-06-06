@@ -15,6 +15,9 @@ build: $(FS_NAME)
 $(FS_NAME): fisopfs.c operations.c persistence.c
 	$(CC) $(CFLAGS) -o $(FS_NAME) $^ $(LDLIBS)
 
+tests: build
+	bash tests/run.sh
+
 format: .clang-files .clang-format
 	xargs -r clang-format -i <$<
 
