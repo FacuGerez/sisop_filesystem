@@ -11,44 +11,34 @@ typedef struct dentry {
 } dentry;
 
 typedef struct inodo_file {
-	char contenido[CONTENT_SIZE];
+	char content[CONTENT_SIZE];
 } inodo_file;
 
 typedef struct inodo_dir {
-	dentry *entries[MAX_DENTRIES];  // Entradas del directorio
-	int size;                       // Número de entradas en el directorio
+	dentry *entries[MAX_DENTRIES];  // Entry for the directory
+	int size;                       // Number of entries in the directory
 } inodo_dir;
 
 typedef struct inodo {
-	inodo_file *file;  // Contenido del archivo o null si es un directorio
-	inodo_dir *dir;    // Contenido del directorio o null si es un archivo
-	                   // .....
-	// 👇 Campos necesarios para getattr:
-	mode_t mode;    // Tipo y permisos
-	nlink_t nlink;  // Número de enlaces (2 para directorio, 1 para archivo)
-	uid_t uid;      // UID del dueño (usualmente getuid())
-	gid_t gid;      // GID del grupo (usualmente getgid())
-	time_t atime;   // Último acceso
-	time_t mtime;   // Última modificación
-	time_t ctime;   // Creación
-	off_t size;     // Tamaño en bytes (para archivos) o 0 para directorios
+	inodo_file *file;  // inode file or null if it is a directory
+	inodo_dir *dir;    // inode directory or null if it is a file
+	// 👇 metadata needed
+	mode_t mode;    // Type and permissions
+	nlink_t nlink;  // Number of links (2 for directory, 1 for file)
+	uid_t uid;      // UID of the owner
+	gid_t gid;      // GID of the group
+	time_t atime;   // Last access
+	time_t mtime;   // Last modification
+	time_t ctime;   // Creation
+	off_t size;     // Size in bytes/chars (for files) or 0 for directories
 } inodo;
 
-/*
-typedef struct superblock {
-    int inodes_count; // Número total de inodos
-    int blocks_count; // Número total de bloques
-    int free_inodes; // Inodos libres
-    int free_blocks; // Bloques libres
-} superblock_t;
-*/
-
-// El sistema de archivos desde la raiz
+// filesystem structure
 typedef struct filesystem {
-	inodo *root;  // Inodo raíz del sistema de archivos
+	inodo *root;  // Inode root for the filesystem
 } filesystem;
 
 
-// Variables globales
+// Global variables
 char *filedisk = DEFAULT_FILE_DISK;
 filesystem fs;
