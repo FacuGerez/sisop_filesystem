@@ -3,5 +3,5 @@ set -euo pipefail
 
 MOUNT=tests/mount
 
-echo "hola" > "$MOUNT"/testfile
+echo "hello_world" > "$MOUNT"/testfile
 ls "$MOUNT"
