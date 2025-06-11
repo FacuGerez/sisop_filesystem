@@ -11,7 +11,7 @@ Lo primero que caracteriza a la estructura del FS es, valga la redundancia, una 
 - inodo directorio -> contiene un array de punteros a dentries y la longitud de este array
 - inodo file -> contiene únicamente el contenido del file
 - inodo -> es un directorio o un file
-- dentry -> el nombre del directorio/archivo y su respectivo inodo 
+- dentry -> el nombre del directorio/archivo y su respectivo inodo
 
 Pero al ir avanzando en el tp nos dimos cuenta que era necesario la metadata respectiva del inodo para poder mostrar la información de esta y darle permisos o no al usuario tanto de escritura como de lectura, entre otros.
 Por lo que luego a nuestra estructura inicial la fuimos modificando para agregarle al inodo los siguientes datos:
@@ -28,7 +28,7 @@ inodo -> ahora ademas de ser un file o un dir, tambien contenia:
 
 Búsqueda de archivos según un path:
 
-La búsqueda según el path se basa en el spliteo del mismo path segun `/` e ir recorriendo a través de los dentries que apuntan a sus propios inodos, para ir leyendo lo que serían sus nombres y encontrar los nombres solicitados dentro del path. En caso de no matchear algún nombre en algún directorio, automáticamente detecta que la operación es inválida porque no existe el archivo o el directorio y devuelve que no se lo encontró. 
+La búsqueda según el path se basa en el spliteo del mismo path segun `/` e ir recorriendo a través de los dentries que apuntan a sus propios inodos, para ir leyendo lo que serían sus nombres y encontrar los nombres solicitados dentro del path. En caso de no matchear algún nombre en algún directorio, automáticamente detecta que la operación es inválida porque no existe el archivo o el directorio y devuelve que no se lo encontró.
 
 Por ejemplo en el caso de: `/prueba1/prueba2/file`
 
@@ -42,8 +42,14 @@ El recorrido que haría el sistema, suponiendo que el path es correcto, sería:
 - Obtengo el inodo `file`
 - Devuelvo el inodo encontrado
 
-### Cómo el sistema de archivos encuentra un archivo específico dado un path
+Como detalle que nos gustaría agregar para comentar es el update de modify_time. En los casos de que se realicen algunas de las siguientes operaciones, además de updatear los tiempos correspondientes del propio file, también actualizamos el modify time del directorio padre:
 
+- create
+- mkdir
+- rmdir
+- unlink
 
+[Fuente1](https://stackoverflow.com/questions/61570808/what-operations-should-change-the-modification-date-of-a-directory#:~:text=It%20is%20apparent%20when%20you,directory%20will%20update%20its%20mtime.)
 
-### Todo tipo de estructuras auxiliares utilizadas
+[Fuente2](https://serverfault.com/questions/388050/does-directory-mtime-always-change-when-a-new-file-is-created-inside)
+

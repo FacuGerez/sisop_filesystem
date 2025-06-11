@@ -57,8 +57,10 @@ search_inode(const char *path, inode **result)
 
 		bool found = false;
 		if (current->dir == NULL) {
-			fprintf(stderr, "Error: not a directory in path %s\n", read_path);
-			return -ENOTDIR;  
+			fprintf(stderr,
+			        "Error: not a directory in path %s\n",
+			        read_path);
+			return -ENOTDIR;
 		}
 
 		for (int i = 0; i < current->dir->size; i++) {
@@ -73,7 +75,7 @@ search_inode(const char *path, inode **result)
 			fprintf(stderr,
 			        "Error: directory not found in path %s\n",
 			        read_path);
-			return -ENOENT; 
+			return -ENOENT;
 		}
 		read_path = ptr + 1;
 	}
@@ -84,7 +86,7 @@ search_inode(const char *path, inode **result)
 		bool found = false;
 		if (current->dir == NULL) {
 			fprintf(stderr, "Error: not a directory %s\n", read_path);
-			return -ENOTDIR; 
+			return -ENOTDIR;
 		}
 
 		for (int i = 0; i < current->dir->size; i++) {
@@ -97,7 +99,7 @@ search_inode(const char *path, inode **result)
 		}
 		if (!found) {
 			fprintf(stderr, "Error: directory or file not found in path %s\n", read_path);
-			return -ENOENT;  
+			return -ENOENT;
 		}
 	}
 
@@ -113,7 +115,7 @@ split_parent_child(const char *path, char *parent, char *child)
 
 	if (last_slash == NULL || strcmp(last_slash, "/") == 0) {
 		fprintf(stderr, "Error: invalid path %s\n", path);
-		return -ENOENT; 
+		return -ENOENT;
 	}
 
 	if (last_slash == path) {
@@ -198,19 +200,17 @@ filesystem_mkdir(const char *path, mode_t mode)
 		return -ENOENT;
 	} else if (dir->dir->size >= MAX_DENTRIES) {
 		fprintf(stderr, "Error: parent directory is full, cannot create a new directory.\n");
-		return -ENOSPC;  
+		return -ENOSPC;
 	} else {
 		for (int i = 0; i < dir->dir->size; i++) {
 			if (strcmp(dir->dir->entries[i]->nombre,
 			           new_directory) == 0) {
-				fprintf(stderr,
-				        "Error: directory '%s' already exists\n",
-				        new_directory);
-				return -EEXIST; 
+				fprintf(stderr, "Error: directory '%s' already exists\n", new_directory);
+				return -EEXIST;
 			}
 		}
 	}
-
+	dir->mtime = time(NULL);
 	inode_dir *directory = dir->dir;
 
 
@@ -231,8 +231,6 @@ filesystem_mkdir(const char *path, mode_t mode)
 	new_entry->inode->mtime = time(NULL);
 	new_entry->inode->ctime = time(NULL);
 	new_entry->inode->size = 0;
-
-
 	new_entry->inode->file = NULL;
 	new_entry->inode->dir = malloc(sizeof(inode_dir));
 	new_entry->inode->dir->size = 0;
@@ -270,7 +268,7 @@ filesystem_readdir(const char *path,
 		filler(buf, directory->dir->entries[i]->nombre, &stbuf, 0);
 	}
 
-	return EXIT_SUCCESS; 
+	return EXIT_SUCCESS;
 }
 
 int
@@ -281,14 +279,14 @@ filesystem_rmdir(const char *path)
 	char child_name[MAX_FILENAME];
 
 	if (split_parent_child(path, parent_path, child_name) != EXIT_SUCCESS) {
-		return -ENOENT; 
+		return -ENOENT;
 	}
 
 
 	int ret = search_inode(parent_path, &parent);
 	if (ret != EXIT_SUCCESS || !parent || !parent->dir) {
 		fprintf(stderr, "Error: parent directory not found or is not a directory.\n");
-		return -ENOENT; 
+		return -ENOENT;
 	}
 
 	dentry *directory_to_remove = NULL;
@@ -314,7 +312,7 @@ filesystem_rmdir(const char *path)
 		return -ENOTEMPTY;
 	}
 
-
+	parent->mtime = time(NULL);
 	for (int j = found; j < parent->dir->size - 1; j++) {
 		parent->dir->entries[j] = parent->dir->entries[j + 1];
 	}
@@ -336,10 +334,10 @@ filesystem_utimens(const char *path, const struct timespec tv[2])
 	int ret = search_inode(path, &inode);
 	if (ret != EXIT_SUCCESS || !inode) {
 		fprintf(stderr, "Error: inode not found for path %s\n", path);
-		return -ENOENT;  
+		return -ENOENT;
 	}
 
-	inode->atime = tv[0].tv_sec;  
+	inode->atime = tv[0].tv_sec;
 	inode->mtime = tv[1].tv_sec;
 	return EXIT_SUCCESS;
 }
@@ -352,7 +350,7 @@ filesystem_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 	char dir_parent[PATH_MAX];
 
 	if (split_parent_child(path, dir_parent, new_file) != EXIT_SUCCESS) {
-		return -ENOENT;  
+		return -ENOENT;
 	}
 
 	inode *dir_copy_inode = NULL;
@@ -360,10 +358,10 @@ filesystem_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 
 	if (ret != EXIT_SUCCESS || !dir_copy_inode || !dir_copy_inode->dir) {
 		fprintf(stderr, "Error: parent directory not found or is not a directory.\n");
-		return -ENOENT;  
+		return -ENOENT;
 	} else if (dir_copy_inode->dir->size >= MAX_DENTRIES) {
 		fprintf(stderr, "Error: parent directory is full, cannot create a new file.\n");
-		return -ENOSPC; 
+		return -ENOSPC;
 	} else {
 		for (int i = 0; i < dir_copy_inode->dir->size; i++) {
 			if (strcmp(dir_copy_inode->dir->entries[i]->nombre,
@@ -371,11 +369,12 @@ filesystem_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 				fprintf(stderr,
 				        "Error: file already exists %s\n",
 				        new_file);
-				return -EEXIST;  
+				return -EEXIST;
 			}
 		}
 	}
 
+	dir_copy_inode->mtime = time(NULL);
 	inode_dir *directory = dir_copy_inode->dir;
 
 	dentry *new_entry = malloc(sizeof(dentry));
@@ -419,12 +418,12 @@ filesystem_read(const char *path,
 	if (ret != EXIT_SUCCESS || !inode || !inode->file) {
 		fprintf(stderr,
 		        "Error: file not found or is not a regular file.\n");
-		return -ENOENT;  
+		return -ENOENT;
 	}
 
 	if (offset < 0 || offset > inode->size) {
 		fprintf(stderr, "Error: offset out of bounds.\n");
-		return -EINVAL;  
+		return -EINVAL;
 	}
 
 	size_t bytes_to_read = inode->size - offset;
@@ -450,11 +449,11 @@ filesystem_write(const char *path,
 	if (ret != EXIT_SUCCESS || !inode || !inode->file) {
 		fprintf(stderr,
 		        "Error: file not found or is not a regular file.\n");
-		return -ENOENT;  
+		return -ENOENT;
 	}
 	if (offset < 0 || offset > inode->size) {
 		fprintf(stderr, "Error: offset out of bounds.\n");
-		return -EINVAL; 
+		return -EINVAL;
 	}
 
 	if (offset + size > CONTENT_SIZE) {
@@ -476,14 +475,14 @@ filesystem_unlink(const char *path)
 	char parent_dir[PATH_MAX];
 
 	if (split_parent_child(path, parent_dir, file) != EXIT_SUCCESS) {
-		return -ENOENT;  
+		return -ENOENT;
 	}
 
 	inode *parent = NULL;
 	int ret = search_inode(parent_dir, &parent);
 	if (ret != EXIT_SUCCESS || !parent || !parent->dir) {
 		fprintf(stderr, "Error: parent directory not found or is not a directory.\n");
-		return -ENOENT;  
+		return -ENOENT;
 	}
 
 
@@ -501,10 +500,10 @@ filesystem_unlink(const char *path)
 		fprintf(stderr,
 		        "Error: file not found or is a directory: %s\n",
 		        file);
-		return -ENOENT; 
+		return -ENOENT;
 	}
 
-
+	parent->mtime = time(NULL);
 	for (int j = found; j < parent->dir->size - 1; j++) {
 		parent->dir->entries[j] = parent->dir->entries[j + 1];
 	}
