@@ -283,13 +283,6 @@ filesystem_readdir(const char *path,
 }
 
 int
-filesystem_unlink(const char *path)
-{
-	fprintf(stderr, "[debug] unlink not implemented");
-	return EXIT_FAILURE;
-}
-
-int
 filesystem_rmdir(const char *path)
 {
 	inode *parent = NULL;
