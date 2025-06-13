@@ -18,6 +18,9 @@ $(FS_NAME): fisopfs.c operations.c persistence.c
 tests: build
 	bash tests/run.sh
 
+tests-verbose: build
+	bash tests/run.sh -v
+
 format: .clang-files .clang-format
 	xargs -r clang-format -i <$<
 
