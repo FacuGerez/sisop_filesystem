@@ -4,7 +4,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <linux/limits.h>
-#include <linux/stat.h>
 #include <errno.h>
 #include <unistd.h>
 
@@ -63,7 +62,7 @@ search_inode(const char *path, inode **result)
 
 		for (int i = 0; i < current->dir->size; i++) {
 			if (strcmp(read_path,
-			           current->dir->dentries[i]->filename) == 0) {
+			           current->dir->entries[i]->filename) == 0) {
 				found = true;
 				current = current->dir->entries[i]->inode;
 				break;
@@ -83,7 +82,7 @@ search_inode(const char *path, inode **result)
 
 		for (int i = 0; i < current->dir->size; i++) {
 			if (strcmp(read_path,
-			           current->dir->dentries[i]->filename) == 0) {
+			           current->dir->entries[i]->filename) == 0) {
 				found = true;
 				current = current->dir->entries[i]->inode;
 				break;
@@ -213,7 +212,7 @@ filesystem_mkdir(const char *path, mode_t mode)
 		return -ENOSPC;
 	} else {
 		for (int i = 0; i < dir->dir->size; i++) {
-			if (strcmp(dir->dir->dentries[i]->filename,
+			if (strcmp(dir->dir->entries[i]->filename,
 			           new_directory) == 0) {
 				fprintf(stderr,
 				        DIRECTORY_ALREADY_EXISTS,
@@ -226,8 +225,8 @@ filesystem_mkdir(const char *path, mode_t mode)
 	inode_dir *directory = dir->dir;
 
 	dentry *new_entry = malloc(sizeof(dentry));
-	strncpy(new_entry->nombre, new_directory, MAX_FILENAME - 1);
-	new_entry->nombre[MAX_FILENAME - 1] = '\0';
+	strncpy(new_entry->filename, new_directory, MAX_FILENAME - 1);
+	new_entry->filename[MAX_FILENAME - 1] = '\0';
 
 	new_entry->inode = malloc(sizeof(inode));
 	new_entry->inode->mode =
@@ -277,7 +276,7 @@ filesystem_readdir(const char *path,
 		struct stat stbuf;
 		inode_to_stat(directory->dir->entries[i]->inode, &stbuf);
 
-		filler(buf, directory->dir->entries[i]->nombre, &stbuf, 0);
+		filler(buf, directory->dir->entries[i]->filename, &stbuf, 0);
 	}
 
 	return EXIT_SUCCESS;
@@ -307,7 +306,7 @@ filesystem_rmdir(const char *path)
 	dentry *directory_to_remove = NULL;
 	int found = 0;
 	for (int i = 0; i < parent->dir->size; i++) {
-		if (strcmp(parent->dir->entries[i]->nombre, child_name) == 0) {
+		if (strcmp(parent->dir->entries[i]->filename, child_name) == 0) {
 			directory_to_remove = parent->dir->entries[i];
 			found = i;
 			break;
@@ -380,7 +379,7 @@ filesystem_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 		return -ENOSPC;
 	} else {
 		for (int i = 0; i < dir_copy_inode->dir->size; i++) {
-			if (strcmp(dir_copy_inode->dir->entries[i]->nombre,
+			if (strcmp(dir_copy_inode->dir->entries[i]->filename,
 			           new_file) == 0) {
 				fprintf(stderr, FILE_ALREADY_EXISTS, new_file);
 				return -EEXIST;
@@ -392,8 +391,8 @@ filesystem_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 	inode_dir *directory = dir_copy_inode->dir;
 
 	dentry *new_entry = malloc(sizeof(dentry));
-	strncpy(new_entry->nombre, new_file, MAX_FILENAME - 1);
-	new_entry->nombre[MAX_FILENAME - 1] = '\0';
+	strncpy(new_entry->filename, new_file, MAX_FILENAME - 1);
+	new_entry->filename[MAX_FILENAME - 1] = '\0';
 
 
 	new_entry->inode = malloc(sizeof(inode));
@@ -409,7 +408,7 @@ filesystem_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 	new_entry->inode->atime = time(NULL);
 	new_entry->inode->mtime = time(NULL);
 	new_entry->inode->ctime = time(NULL);
-	new_entry->inode->size = strlen(new_entry->inode->file->content);
+	new_entry->inode->size = (off_t) strlen(new_entry->inode->file->content);
 
 
 	new_entry->inode->file->content[0] = '\0';
@@ -430,7 +429,7 @@ filesystem_read(const char *path,
 	inode *inode = NULL;
 	int ret = search_inode(path, &inode);
 	if (ret != EXIT_SUCCESS) {
-		fprintf(stderr, INODE_NOT_FOUND);
+		fprintf(stderr, INODE_NOT_FOUND, path);
 		return -ENOENT;
 	} else if (!inode->file) {
 		fprintf(stderr, INODE_NOT_FILE);
@@ -450,7 +449,7 @@ filesystem_read(const char *path,
 	memcpy(buf, inode->file->content + offset, bytes_to_read);
 	buf[bytes_to_read] = '\0';
 	inode->atime = time(NULL);
-	return bytes_to_read;
+	return (int) bytes_to_read;
 }
 
 int
@@ -463,7 +462,7 @@ filesystem_write(const char *path,
 	inode *inode = NULL;
 	int ret = search_inode(path, &inode);
 	if (ret != EXIT_SUCCESS) {
-		fprintf(stderr, INODE_NOT_FOUND);
+		fprintf(stderr, INODE_NOT_FOUND, path);
 		return -ENOENT;
 	} else if (!inode->file) {
 		fprintf(stderr, INODE_NOT_FILE);
@@ -481,9 +480,9 @@ filesystem_write(const char *path,
 
 	memcpy(inode->file->content + offset, buf, size);
 
-	inode->size += size;
+	inode->size += (off_t) size;
 
-	return size;
+	return (int) size;
 }
 
 int
@@ -509,7 +508,7 @@ filesystem_unlink(const char *path)
 	dentry *file_to_remove = NULL;
 	int found = 0;
 	for (int i = 0; i < parent->dir->size; i++) {
-		if (strcmp(parent->dir->entries[i]->nombre, file) == 0) {
+		if (strcmp(parent->dir->entries[i]->filename, file) == 0) {
 			file_to_remove = parent->dir->entries[i];
 			found = i;
 			break;

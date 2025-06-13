@@ -12,7 +12,7 @@ all: build
 	
 build: $(FS_NAME)
 
-$(FS_NAME): fisopfs.c operations.c operations_wrappers.c persistence.c
+$(FS_NAME): fisopfs.c operations.c persistence.c
 	$(CC) $(CFLAGS) -o $(FS_NAME) $^ $(LDLIBS)
 
 format: .clang-files .clang-format

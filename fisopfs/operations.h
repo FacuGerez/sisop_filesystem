@@ -16,25 +16,27 @@ int filesystem_readdir(const char *path,
                        off_t offset,
                        struct fuse_file_info *fi);
 
-/*int filesystem_unlink(const char *path);*/
+int filesystem_unlink(const char *path);
 
 int filesystem_rmdir(const char *path);
 
-/*int filesystem_create(const char *path, mode_t mode, struct fuse_file_info *fi);*/
+int filesystem_utimens(const char *path, const struct timespec tv[2]);
+
+int filesystem_create(const char *path, mode_t mode, struct fuse_file_info *fi);
 
 /*int filesystem_open(const char *path, struct fuse_file_info *fi);*/
 
-/*int filesystem_write(const char *path,
+int filesystem_write(const char *path,
                      const char *buf,
                      size_t size,
                      off_t offset,
-                     struct fuse_file_info *fi);*/
+                     struct fuse_file_info *fi);
 
-/*int filesystem_read(const char *path,
-                    struct fuse_bufvec **bufp,
+int filesystem_read(const char *path,
+                    char *buf,
                     size_t size,
                     off_t offset,
-                    struct fuse_file_info *fi);*/
+                    struct fuse_file_info *fi);
 
 void filesystem_destroy(void *private_data);
 

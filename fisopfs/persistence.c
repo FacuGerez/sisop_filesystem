@@ -46,7 +46,7 @@ serialize_inode(FILE *file, const inode *node)
 	} else {
 		fwrite(&node->dir->size, sizeof(int), 1, file);
 		for (int i = 0; i < node->dir->size; ++i) {
-			const dentry *entry = node->dir->dentries[i];
+			const dentry *entry = node->dir->entries[i];
 			size_t len = strlen(entry->filename);
 			fwrite(&len, sizeof(len), 1, file);
 			fwrite(entry->filename, 1, len, file);
@@ -91,7 +91,7 @@ deserialize_inode(FILE *file)
 			fread_checked(entry->filename, 1, len, file);
 			entry->filename[len] = '\0';
 			entry->inode = deserialize_inode(file);
-			node->dir->dentries[i] = entry;
+			node->dir->entries[i] = entry;
 		}
 	}
 

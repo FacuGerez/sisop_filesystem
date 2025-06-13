@@ -1,3 +1,5 @@
+#pragma once
+
 #define PARENT_INODE_NOT_DIRECTORY                                             \
 	"Error: parent directory is not a directory.\n"
 #define PARENT_DIRECTORY_NOT_FOUND "Error: parent directory not found.\n"
