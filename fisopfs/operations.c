@@ -452,7 +452,8 @@ filesystem_read(const char *path,
 
 
 int
-filesystem_open(const char* path, struct fuse_file_info* fi) {
+filesystem_open(const char *path, struct fuse_file_info *fi)
+{
 	inode *inode = NULL;
 	int ret = search_inode(path, &inode);
 	if (ret != EXIT_SUCCESS) {
@@ -509,7 +510,9 @@ filesystem_write(const char *path,
 	return (int) size;
 }
 
-int filesystem_truncate(const char *path, off_t size) {
+int
+filesystem_truncate(const char *path, off_t size)
+{
 	inode *inode = NULL;
 	int ret = search_inode(path, &inode);
 
@@ -527,7 +530,7 @@ int filesystem_truncate(const char *path, off_t size) {
 
 	if (size < inode->size) {
 		for (off_t i = size; i < MAX_CONTENT_SIZE; i++) {
-			inode->file->content[i] = '\0'; 
+			inode->file->content[i] = '\0';
 		}
 	}
 

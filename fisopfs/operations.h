@@ -32,7 +32,7 @@ int filesystem_write(const char *path,
                      off_t offset,
                      struct fuse_file_info *fi);
 
-int filesystem_truncate(const char* path, off_t size);
+int filesystem_truncate(const char *path, off_t size);
 
 int filesystem_read(const char *path,
                     char *buf,

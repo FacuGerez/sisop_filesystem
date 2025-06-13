@@ -71,7 +71,7 @@ for script in "$CASES"/test_*.sh; do
 	exp="$EXPECTED/${base}_expected.txt"
 
 	log "Running $base"
-	if ! bash "$script" >"$out" 2>&1; then
+	if ! bash "$script" >"$out"; then
 		log -e "${RED}$base: script exited with non-zero status${RESET}"
 	fi
 
