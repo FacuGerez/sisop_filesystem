@@ -1,3 +1,8 @@
+#ifndef FS_DEFS_H
+#define FS_DEFS_H
+
+#include <sys/types.h>
+
 #define CONTENT_SIZE 1024
 #define MAX_DENTRIES 128
 #define MAX_FILENAME 256
@@ -19,10 +24,9 @@ typedef struct inode_dir {
 	int size;
 } inode_dir;
 
-
 typedef struct inode {
-	inode_file *file;  	// inode file or null if it is a directory
-	inode_dir *dir;    	// inode directory or null if it is a file
+	inode_file *file;  	// Inode file or null if it is a directory
+	inode_dir *dir;    	// Inode directory or null if it is a file
 	mode_t mode;    	// Type and permissions of this inodes
 	nlink_t nlink;  	// Number of links (2 for directory, 1 for file)
 	uid_t uid;      	// UID of the owner
@@ -33,13 +37,9 @@ typedef struct inode {
 	off_t size;     	// Size in bytes/chars for files or 0 for directories
 } inode;
 
-// filesystem structure
+// Filesystem structure
 typedef struct filesystem {
 	inode *root;  // Inode root for the filesystem
 } filesystem;
 
-
-// Global variables
-char *filedisk = DEFAULT_FILE_DISK;
-filesystem fs;
-
+#endif

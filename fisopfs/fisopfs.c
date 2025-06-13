@@ -1,15 +1,14 @@
 #define FUSE_USE_VERSION 30
 
 #include <fuse.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/file.h>
 #include <string.h>
-#include <stdlib.h>
-#include <errno.h>
-#include "operations.c"
+
+#include "defs.h"
+#include "operations.h"
+
+// Global variables
+char *filedisk = DEFAULT_FILE_DISK;
+filesystem fs;
 
 static struct fuse_operations operations = {
 	.init = filesystem_init,
@@ -17,12 +16,12 @@ static struct fuse_operations operations = {
 	.mkdir = filesystem_mkdir,
 	.readdir = filesystem_readdir,
 	.rmdir = filesystem_rmdir,
-
 	.utimens = filesystem_utimens,
 	.create = filesystem_create,
 	.write = filesystem_write,
 	.read = filesystem_read,
 	.unlink = filesystem_unlink,
+	.destroy = filesystem_destroy,  // Called on flush.
 };
 
 int

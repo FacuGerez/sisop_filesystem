@@ -1,19 +1,19 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <fcntl.h>
-#include <errno.h>
-#include <sys/types.h>
-#include <sys/stat.h>  // Needed for S_IFDIR
-#include <time.h>
-#include <stdarg.h>
-#include <fuse.h>
+#include "operations.h"
+
 #include <stdbool.h>
+#include <stdlib.h>
+#include <string.h>
 #include <linux/limits.h>
-#include "defs.h"
 #include <linux/stat.h>
+#include <errno.h>
+#include <unistd.h>
+
 #include "errors.h"
+#include "defs.h"
+#include "persistence.h"
 
 extern filesystem fs;
+extern char *filedisk;
 
 // Functions and wrappers for the filesystem operations
 
@@ -63,7 +63,7 @@ search_inode(const char *path, inode **result)
 
 		for (int i = 0; i < current->dir->size; i++) {
 			if (strcmp(read_path,
-			           current->dir->entries[i]->nombre) == 0) {
+			           current->dir->dentries[i]->filename) == 0) {
 				found = true;
 				current = current->dir->entries[i]->inode;
 				break;
@@ -83,7 +83,7 @@ search_inode(const char *path, inode **result)
 
 		for (int i = 0; i < current->dir->size; i++) {
 			if (strcmp(read_path,
-			           current->dir->entries[i]->nombre) == 0) {
+			           current->dir->dentries[i]->filename) == 0) {
 				found = true;
 				current = current->dir->entries[i]->inode;
 				break;
@@ -130,6 +130,21 @@ split_parent_child(const char *path, char *parent, char *child)
 void *
 filesystem_init(struct fuse_conn_info *conn)
 {
+	printf("Initializing filesystem...\n");
+
+	// Initialize the filesystem structure from file.
+	FILE *input = fopen(filedisk, "rb");
+	if (input) {
+		printf("Loading filesystem from disk: %s\n", filedisk);
+		fs.root = deserialize_inode(input);
+		fclose(input);
+		printf("Filesystem loaded from disk: %s\n", filedisk);
+		return &fs;
+	}
+
+	printf("No persistence file found, initializing new FS.\n");
+
+	// Fallback, initialize the filesystem structure from scratch.
 	fs.root = malloc(sizeof(inode));
 	fs.root->mode = __S_IFDIR |
 	                0755;  // Set mode to directory with rwxr-xr-x permissions
@@ -141,11 +156,12 @@ filesystem_init(struct fuse_conn_info *conn)
 	fs.root->ctime = time(NULL);
 	fs.root->size = 0;
 
-
 	fs.root->file = NULL;
 	fs.root->dir = malloc(sizeof(inode_dir));
 	fs.root->dir->entries[0] = NULL;
 	fs.root->dir->size = 0;
+
+	printf("Filesystem initialized successfully.\n");
 	return &fs;
 }
 
@@ -197,7 +213,7 @@ filesystem_mkdir(const char *path, mode_t mode)
 		return -ENOSPC;
 	} else {
 		for (int i = 0; i < dir->dir->size; i++) {
-			if (strcmp(dir->dir->entries[i]->nombre,
+			if (strcmp(dir->dir->dentries[i]->filename,
 			           new_directory) == 0) {
 				fprintf(stderr,
 				        DIRECTORY_ALREADY_EXISTS,
@@ -209,11 +225,9 @@ filesystem_mkdir(const char *path, mode_t mode)
 	dir->mtime = time(NULL);
 	inode_dir *directory = dir->dir;
 
-
 	dentry *new_entry = malloc(sizeof(dentry));
 	strncpy(new_entry->nombre, new_directory, MAX_FILENAME - 1);
 	new_entry->nombre[MAX_FILENAME - 1] = '\0';
-
 
 	new_entry->inode = malloc(sizeof(inode));
 	new_entry->inode->mode =
@@ -230,7 +244,6 @@ filesystem_mkdir(const char *path, mode_t mode)
 	new_entry->inode->file = NULL;
 	new_entry->inode->dir = malloc(sizeof(inode_dir));
 	new_entry->inode->dir->size = 0;
-
 
 	directory->entries[directory->size] = new_entry;
 	directory->size++;
@@ -514,10 +527,20 @@ filesystem_unlink(const char *path)
 	}
 	parent->dir->size--;
 
-	// ADD COMMENT
+	// TODO: ADD COMMENT
 	free(file_to_remove->inode->file);
 	free(file_to_remove->inode);
 	free(file_to_remove);
 
 	return EXIT_SUCCESS;
+}
+
+void
+filesystem_destroy(void *private_data)
+{
+	printf("Saving filesystem to disk: %s\n", filedisk);
+	FILE *output = fopen(filedisk, "wb");
+	serialize_inode(output, fs.root);
+	fclose(output);
+	printf("Filesystem saved to disk: %s\n", filedisk);
 }
