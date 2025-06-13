@@ -22,6 +22,8 @@ static struct fuse_operations operations = {
 	.read = filesystem_read,
 	.unlink = filesystem_unlink,
 	.destroy = filesystem_destroy,  // Called on flush.
+	.open = filesystem_open,
+	.truncate = filesystem_truncate,
 };
 
 int
