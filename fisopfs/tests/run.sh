@@ -1,20 +1,6 @@
 #!/bin/bash
 set -euo pipefail
 
-log() {
-	if $verbose; then
-		echo "[verbose] $*"
-	fi
-}
-
-cleanup() {
-	echo "Cleaning up..."
-	umount "$MOUNT" 2>/dev/null || true
-	[ -n "${FS_PID:-}" ] && kill "$FS_PID" 2>/dev/null || true
-	wait "$FS_PID" 2>/dev/null || true
-}
-trap cleanup EXIT
-
 verbose=false
 
 while [[ "$#" -gt 0 ]]; do
@@ -24,6 +10,25 @@ while [[ "$#" -gt 0 ]]; do
 	esac
 	shift
 done
+
+log() {
+	if $verbose; then
+		echo "[verbose] $*"
+	fi
+}
+
+cleanup() {
+	if mountpoint -q "$MOUNT"; then
+		log "Unmounting $MOUNT..."
+		umount "$MOUNT" 2>/dev/null || true
+	fi
+	if [ -n "${FS_PID:-}" ]; then
+		log "Killing FS process $FS_PID"
+		kill "$FS_PID" 2>/dev/null || true
+		wait "$FS_PID" 2>/dev/null || true
+	fi
+}
+trap cleanup EXIT
 
 TESTDIR=tests
 
@@ -37,11 +42,6 @@ EXPECTED="$TESTDIR/expected"
 OUTPUT="$TESTDIR/output"
 DISK="$TESTDIR/testdisk.fisopfs"
 FS_BINARY=./fisopfs
-
-if mountpoint -q "$MOUNT"; then
-	log "Unmounting stale mount at $MOUNT"
-	umount "$MOUNT"
-fi
 
 rm -rf "$MOUNT" "$OUTPUT"
 mkdir -p "$MOUNT" "$OUTPUT"
@@ -76,18 +76,16 @@ for script in "$CASES"/test_*.sh; do
 	fi
 
 	log "Comparing $out to $exp"
-	if diff -u "$exp" "$out"; then
+	if diff_out=$(diff -u "$exp" "$out"); then
 		echo -e "${GREEN}$base PASSED${RESET}"
 	else
 		echo -e "${RED}$base FAILED${RESET}"
 		EXIT_CODE=1
 	fi
+	log "$diff_out"
 
 	log "Cleaning test directory..."
 	find "$MOUNT" -mindepth 1 -exec rm -rf {} +
 done
-
-log "Unmounting filesystem..."
-umount "$MOUNT"
 
 exit $EXIT_CODE
