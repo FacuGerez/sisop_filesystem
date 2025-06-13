@@ -4,33 +4,38 @@
 #include <stdlib.h>
 #include <string.h>
 #include <linux/limits.h>
+#include <linux/stat.h>
 #include <errno.h>
 #include <unistd.h>
 
+#include "errors.h"
 #include "defs.h"
 #include "persistence.h"
 
 extern filesystem fs;
 extern char *filedisk;
 
+// Functions and wrappers for the filesystem operations
+
+// Convert inode to stat structure
 void
-inodo_to_stat(const inode *inode, struct stat *stbuf)
+inode_to_stat(const inode *inode, struct stat *stbuf)
 {
-	memset(stbuf, 0, sizeof(struct stat));  // Clear the stat structure
-	stbuf->st_mode = inode->mode;           // Set the mode
-	stbuf->st_uid = inode->uid;             // User ID of owner
-	stbuf->st_gid = inode->gid;             // Group ID of owner
-	stbuf->st_atime = inode->atime;         // Last access time
-	stbuf->st_mtime = inode->mtime;         // Last modification time
-	stbuf->st_ctime = inode->ctime;         // Creation time
-	stbuf->st_nlink = inode->nlink;         // Number of links
-	stbuf->st_size = inode->size;           // Size in bytes
+	memset(stbuf, 0, sizeof(struct stat));
+	stbuf->st_mode = inode->mode;
+	stbuf->st_uid = inode->uid;
+	stbuf->st_gid = inode->gid;
+	stbuf->st_atime = inode->atime;
+	stbuf->st_mtime = inode->mtime;
+	stbuf->st_ctime = inode->ctime;
+	stbuf->st_nlink = inode->nlink;
+	stbuf->st_size = inode->size;
 }
 
+// Search for an inode by path
 int
-search_inodo(const char *path, inode **result)
+search_inode(const char *path, inode **result)
 {
-	printf("Searching for inodo: %s\n", path);
 	char path_copy[PATH_MAX];
 	strncpy(path_copy, path, sizeof(path_copy));
 	path_copy[PATH_MAX - 1] = '\0';
@@ -43,58 +48,49 @@ search_inodo(const char *path, inode **result)
 	inode *current = fs.root;
 
 	if (strlen(read_path) == 0) {
-		// If the path is just "/", return the root inodo
+		// If the path is just "/", return the root inode
 		*result = current;
-		return EXIT_SUCCESS;  // Found the inodo
+		return EXIT_SUCCESS;
 	}
+
 	while ((ptr = strchr(read_path, '/')) != NULL) {
 		*ptr = '\0';
 
 		bool found = false;
 		if (current->dir == NULL) {
-			fprintf(stderr, "Error: Not a directory: %s\n", read_path);
-			return -ENOTDIR;  // Not a directory
+			return -ENOTDIR;
 		}
 
 		for (int i = 0; i < current->dir->size; i++) {
 			if (strcmp(read_path,
 			           current->dir->dentries[i]->filename) == 0) {
 				found = true;
-				current = current->dir->dentries[i]->inode;  // Move to the next inodo
+				current = current->dir->entries[i]->inode;
 				break;
 			}
 		}
 		if (!found) {
-			fprintf(stderr,
-			        "Error: Directory not found in path: %s\n",
-			        read_path);
-			return -ENOENT;  // No such file or directory
+			return -ENOENT;
 		}
-		read_path = ptr + 1;  // Move to the next part of the path
+		read_path = ptr + 1;
 	}
-	// After processing all parts of the path, check if we are at a file or directory
+	// After processing all parts of the path, check if we are at a file or a directory
 	if (strlen(read_path) != 0) {
-		// If there's a final part of the path, check if it exists
-		// this is a file or directory at the end of the path
 		bool found = false;
 		if (current->dir == NULL) {
-			fprintf(stderr, "Error: Not a directory: %s\n", read_path);
-			return -ENOTDIR;  // Not a directory
+			return -ENOTDIR;
 		}
 
 		for (int i = 0; i < current->dir->size; i++) {
 			if (strcmp(read_path,
 			           current->dir->dentries[i]->filename) == 0) {
 				found = true;
-				current = current->dir->dentries[i]->inode;  // Move to the next inodo
+				current = current->dir->entries[i]->inode;
 				break;
 			}
 		}
 		if (!found) {
-			fprintf(stderr,
-			        "Error: Directory not found in path: %s\n",
-			        read_path);
-			return -ENOENT;  // No such file or directory
+			return -ENOENT;
 		}
 	}
 
@@ -103,6 +99,34 @@ search_inodo(const char *path, inode **result)
 	return EXIT_SUCCESS;
 }
 
+int
+split_parent_child(const char *path, char *parent, char *child)
+{
+	char *last_slash = strrchr(path, '/');
+
+	if (last_slash == NULL || strcmp(last_slash, "/") == 0) {
+		fprintf(stderr, "Error: invalid path %s\n", path);
+		return -ENOENT;
+	}
+
+	if (last_slash == path) {
+		strcpy(parent, "/");
+		parent[1] = '\0';
+	} else {
+		size_t dir_len = last_slash - path;
+		strncpy(parent, path, dir_len);
+		parent[dir_len] = '\0';
+	}
+
+	strcpy(child, last_slash + 1);
+	return EXIT_SUCCESS;
+}
+
+
+// Filesystem functions
+
+
+// Initialize the filesystem
 void *
 filesystem_init(struct fuse_conn_info *conn)
 {
@@ -125,18 +149,18 @@ filesystem_init(struct fuse_conn_info *conn)
 	fs.root->mode = __S_IFDIR |
 	                0755;  // Set mode to directory with rwxr-xr-x permissions
 	fs.root->nlink = 2;  // Root directory has 2 links (itself and its parent)
-	fs.root->uid = getuid();  // Set the owner to the current user
-	fs.root->gid = getgid();  // Set the group to the current user's group
-	fs.root->atime = time(NULL);  // Set last access time to now
-	fs.root->mtime = time(NULL);  // Set last modification time to now
-	fs.root->ctime = time(NULL);  // Set creation time to now
-	fs.root->size = 0;            // Root directory starts empty
-	// Initialize the root inodo
-	fs.root->file = NULL;  // Root is a directory
+	fs.root->uid = getuid();
+	fs.root->gid = getgid();
+	fs.root->atime = time(NULL);
+	fs.root->mtime = time(NULL);
+	fs.root->ctime = time(NULL);
+	fs.root->size = 0;
+
+	fs.root->file = NULL;
 	fs.root->dir = malloc(sizeof(inode_dir));
-	fs.root->dir->dentries[0] =
-	        NULL;            // Initialize the root directory entries
-	fs.root->dir->size = 0;  // No entries in the root directory
+	fs.root->dir->entries[0] = NULL;
+	fs.root->dir->size = 0;
+
 	printf("Filesystem initialized successfully.\n");
 	return &fs;
 }
@@ -144,126 +168,86 @@ filesystem_init(struct fuse_conn_info *conn)
 int
 filesystem_getattr(const char *path, struct stat *stbuf)
 {
-	printf("Getting attributes for: %s\n", path);
 	inode *inode = NULL;
-	int ret = search_inodo(path, &inode);
-	if (ret != EXIT_SUCCESS || !inode) {
-		fprintf(stderr, "Error: Inode not found for path: %s\n", path);
-		return -ENOENT;  // No such file or directory
+	int ret = search_inode(path, &inode);
+	if (ret != EXIT_SUCCESS) {
+		fprintf(stderr, INODE_NOT_FOUND, path);
+		return -ENOENT;
 	}
 
-	memset(stbuf, 0, sizeof(struct stat));  // Clear the stat structure
-	// Set the basic attributes
-	stbuf->st_mode = inode->mode;    // Set the mode
-	stbuf->st_uid = inode->uid;      // User ID of owner
-	stbuf->st_gid = inode->gid;      // Group ID of owner
-	stbuf->st_atime = inode->atime;  // Last access time
-	stbuf->st_mtime = inode->mtime;  // Last modification time
-	stbuf->st_ctime = inode->ctime;  // Creation time
-	stbuf->st_nlink = inode->nlink;  // Number of links
-	stbuf->st_size = inode->size;    // Size in bytes
+	memset(stbuf, 0, sizeof(struct stat));
 
-	return EXIT_SUCCESS;  // Success
+	stbuf->st_mode = inode->mode;
+	stbuf->st_uid = inode->uid;
+	stbuf->st_gid = inode->gid;
+	stbuf->st_atime = inode->atime;
+	stbuf->st_mtime = inode->mtime;
+	stbuf->st_ctime = inode->ctime;
+	stbuf->st_nlink = inode->nlink;
+	stbuf->st_size = inode->size;
+
+	return EXIT_SUCCESS;
 }
 
 int
 filesystem_mkdir(const char *path, mode_t mode)
 {
-	printf("Creating directory: %s\n", path);
-
-	/*
-	 * First, we separate the path into the new directory name and the
-	 * parent directory. We assume the path is in the format
-	 * "/parent/new_directory". If the path is just "/", we return an error
-	 * because we cannot create a directory at the root. If the path is
-	 * invalid (e.g., "/new_directory/"), we also return an error. We will
-	 * use the last slash to determine the parent directory and the new
-	 * directory name.
-	 */
 	char new_directory[MAX_FILENAME];
 	char path_copy[PATH_MAX];
 
-	char *last_slash = strrchr(path, '/');
-
-	if (last_slash == NULL || strcmp(last_slash, "/") == 0) {
-		fprintf(stderr, "Error: Invalid path: %s\n", path);
-		return -ENOENT;  // No such file or directory
+	if (split_parent_child(path, path_copy, new_directory) != EXIT_SUCCESS) {
+		return -ENOENT;
 	}
-	// Calcular longitudes
-	if (last_slash == path) {
-		strcpy(path_copy, "/");
-		path_copy[1] = '\0';
-	} else {
-		size_t dir_len = last_slash - path;
-		strncpy(path_copy, path, dir_len);
-		path_copy[dir_len] = '\0';
-	}
-
-	strcpy(new_directory, last_slash + 1);
-
-	/*
-	 * Now we have the parent directory in `path_copy` and the new directory
-	 * name in `new_directory`. We will search for the parent directory in
-	 * the filesystem and create a new entry for the new directory. If the
-	 * parent directory does not exist, we return an error. If the new
-	 * directory already exists, we also return an error.
-	 */
 
 	inode *dir = NULL;
-	int ret = search_inodo(path_copy, &dir);
+	int ret = search_inode(path_copy, &dir);
 
-	if (ret != EXIT_SUCCESS || !dir || !dir->dir) {
-		fprintf(stderr, "Error: Parent directory not found or is not a directory.\n");
+	if (ret != EXIT_SUCCESS) {
+		fprintf(stderr, PARENT_DIRECTORY_NOT_FOUND);
+		return -ENOENT;
+	} else if (!dir->dir) {
+		fprintf(stderr, PARENT_INODE_NOT_DIRECTORY);
 		return -ENOENT;
 	} else if (dir->dir->size >= MAX_DENTRIES) {
-		fprintf(stderr, "Error: Parent directory is full, cannot create new directory.\n");
-		return -ENOSPC;  // No space left on device
+		fprintf(stderr, PARENT_DIRECTORY_FULL);
+		return -ENOSPC;
 	} else {
-		// Check if the new directory already exists in the parent directory
 		for (int i = 0; i < dir->dir->size; i++) {
 			if (strcmp(dir->dir->dentries[i]->filename,
 			           new_directory) == 0) {
 				fprintf(stderr,
-				        "Error: Directory already exists: %s\n",
+				        DIRECTORY_ALREADY_EXISTS,
 				        new_directory);
-				return -EEXIST;  // File exists
+				return -EEXIST;
 			}
 		}
 	}
-
+	dir->mtime = time(NULL);
 	inode_dir *directory = dir->dir;
 
-	// create the directory entry
 	dentry *new_entry = malloc(sizeof(dentry));
-	strncpy(new_entry->filename, new_directory, MAX_FILENAME - 1);
-	new_entry->filename[MAX_FILENAME - 1] = '\0';  // Ensure null termination
+	strncpy(new_entry->nombre, new_directory, MAX_FILENAME - 1);
+	new_entry->nombre[MAX_FILENAME - 1] = '\0';
 
-	// Allocate memory for the inodo and initialize it
-	new_entry->inode =
-	        malloc(sizeof(inode));  // Allocate memory for the new inodo
+	new_entry->inode = malloc(sizeof(inode));
 	new_entry->inode->mode =
 	        __S_IFDIR |
 	        0755;  // Set mode to directory with rwxr-xr-x permissions
 	new_entry->inode->nlink =
 	        2;  // New directory has 2 links (itself and its parent)
-	new_entry->inode->uid = getuid();  // Set the owner to the current user
-	new_entry->inode->gid =
-	        getgid();  // Set the group to the current user's group
-	new_entry->inode->atime = time(NULL);  // Set last access time to now
-	new_entry->inode->mtime =
-	        time(NULL);  // Set last modification time to now
-	new_entry->inode->ctime = time(NULL);  // Set creation time to now
-	new_entry->inode->size = 0;            // New directory starts empty
-
-	// Initialize the inodo for the new directory
-	new_entry->inode->file = NULL;  // New directory has no file content
+	new_entry->inode->uid = getuid();
+	new_entry->inode->gid = getgid();
+	new_entry->inode->atime = time(NULL);
+	new_entry->inode->mtime = time(NULL);
+	new_entry->inode->ctime = time(NULL);
+	new_entry->inode->size = 0;
+	new_entry->inode->file = NULL;
 	new_entry->inode->dir = malloc(sizeof(inode_dir));
-	new_entry->inode->dir->size = 0;  // New directory starts empty
+	new_entry->inode->dir->size = 0;
 
-	// Set the inodo fields for the new directory
-	directory->dentries[directory->size] = new_entry;  // Add the new entry
-	directory->size++;    // Increment the size of the directory
-	return EXIT_SUCCESS;  // Success
+	directory->entries[directory->size] = new_entry;
+	directory->size++;
+	return EXIT_SUCCESS;
 }
 
 int
@@ -273,90 +257,281 @@ filesystem_readdir(const char *path,
                    off_t offset,
                    struct fuse_file_info *fi)
 {
-	printf("Reading directory: %s\n", path);
 	inode *directory = NULL;
-	int ret = search_inodo(path, &directory);
-	if (ret != EXIT_SUCCESS || !directory || !directory->dir) {
-		fprintf(stderr, "Error: Parent directory not found or is not a directory.\n");
+	int ret = search_inode(path, &directory);
+	if (ret != EXIT_SUCCESS) {
+		fprintf(stderr, PARENT_DIRECTORY_NOT_FOUND);
+		return -ENOENT;
+	} else if (!directory->dir) {
+		fprintf(stderr, PARENT_INODE_NOT_DIRECTORY);
 		return -ENOENT;
 	}
 
-	// TODO: where is NULL back it, we should put the stat
-	filler(buf, ".", NULL, 0);   // Add current directory
-	filler(buf, "..", NULL, 0);  // Add parent directory
+	filler(buf, ".", NULL, 0);
+	filler(buf, "..", NULL, 0);
 
 	for (int i = 0; i < directory->dir->size; i++) {
-		if (directory->dir->dentries[i] == NULL) {
-			continue;  // Skip empty entries
+		if (directory->dir->entries[i] == NULL) {
+			continue;
 		}
 		struct stat stbuf;
-		inodo_to_stat(directory->dir->dentries[i]->inode, &stbuf);
+		inode_to_stat(directory->dir->entries[i]->inode, &stbuf);
 
-		filler(buf,
-		       directory->dir->dentries[i]->filename,
-		       &stbuf,
-		       0);  // Add each entry in the directory
+		filler(buf, directory->dir->entries[i]->nombre, &stbuf, 0);
 	}
 
-	return EXIT_SUCCESS;  // Success
+	return EXIT_SUCCESS;
 }
 
 int
 filesystem_rmdir(const char *path)
 {
-	printf("Removing directory: %s\n", path);
-	// Remove the directory from its parent
 	inode *parent = NULL;
 	char parent_path[PATH_MAX];
-	strncpy(parent_path, path, sizeof(parent_path) - 1);
-	char *last_slash = strrchr(parent_path, '/');
-	if (last_slash) {
-		*last_slash =
-		        '\0';  // Remove the last part to get the parent path
-	} else {
-		strcpy(parent_path, "/");  // If no slash, it's the root
-	}
-	last_slash++;
+	char child_name[MAX_FILENAME];
 
-	int ret = search_inodo(parent_path, &parent);
-	if (ret != EXIT_SUCCESS || !parent || !parent->dir) {
-		fprintf(stderr, "Error: Parent directory not found.\n");
-		return -ENOENT;  // No such file or directory
+	if (split_parent_child(path, parent_path, child_name) != EXIT_SUCCESS) {
+		return -ENOENT;
 	}
-	// Now search for the directory to remove
+
+
+	int ret = search_inode(parent_path, &parent);
+	if (ret != EXIT_SUCCESS) {
+		fprintf(stderr, PARENT_DIRECTORY_NOT_FOUND);
+		return -ENOENT;
+	} else if (!parent->dir) {
+		fprintf(stderr, PARENT_INODE_NOT_DIRECTORY);
+		return -ENOENT;
+	}
+
 	dentry *directory_to_remove = NULL;
+	int found = 0;
 	for (int i = 0; i < parent->dir->size; i++) {
-		if (strcmp(parent->dir->dentries[i]->filename, last_slash) == 0) {
-			directory_to_remove = parent->dir->dentries[i];
+		if (strcmp(parent->dir->entries[i]->nombre, child_name) == 0) {
+			directory_to_remove = parent->dir->entries[i];
+			found = i;
 			break;
 		}
 	}
+
 	if (directory_to_remove == NULL ||
 	    directory_to_remove->inode->dir == NULL) {
-		fprintf(stderr, "Error: Directory not found: %s\n", last_slash);
-		return -ENOENT;  // No such file or directory
+		fprintf(stderr, DIRECTORY_NOT_FOUND, child_name);
+		return -ENOENT;
 	}
+
 	if (directory_to_remove->inode->dir->size > 0) {
-		fprintf(stderr, "Error: Directory not empty: %s\n", last_slash);
-		return -ENOTEMPTY;  // Directory not empty
+		fprintf(stderr, DIRECTORY_NOT_EMPTY, child_name);
+		return -ENOTEMPTY;
 	}
-	// Remove the directory entry from the parent
-	for (int i = 0; i < parent->dir->size; i++) {
-		if (parent->dir->dentries[i] == directory_to_remove) {
-			// Shift the entries to remove the directory
-			for (int j = i; j < parent->dir->size - 1; j++) {
-				parent->dir->dentries[j] =
-				        parent->dir->dentries[j + 1];
-			}
-			parent->dir->dentries[parent->dir->size - 1] =
-			        NULL;  // Clear the last entry
-			break;
-		}
+
+	parent->mtime = time(NULL);
+	for (int j = found; j < parent->dir->size - 1; j++) {
+		parent->dir->entries[j] = parent->dir->entries[j + 1];
 	}
+	parent->dir->entries[parent->dir->size - 1] = NULL;
 	parent->dir->size--;
+
+
 	free(directory_to_remove->inode->dir);
 	free(directory_to_remove->inode);
 	free(directory_to_remove);
+	return EXIT_SUCCESS;
+}
+
+
+int
+filesystem_utimens(const char *path, const struct timespec tv[2])
+{
+	inode *inode = NULL;
+	int ret = search_inode(path, &inode);
+	if (ret != EXIT_SUCCESS) {
+		fprintf(stderr, INODE_NOT_FOUND, path);
+		return -ENOENT;
+	}
+
+	inode->atime = tv[0].tv_sec;
+	inode->mtime = tv[1].tv_sec;
+	return EXIT_SUCCESS;
+}
+
+
+int
+filesystem_create(const char *path, mode_t mode, struct fuse_file_info *fi)
+{
+	char new_file[MAX_FILENAME];
+	char dir_parent[PATH_MAX];
+
+	if (split_parent_child(path, dir_parent, new_file) != EXIT_SUCCESS) {
+		return -ENOENT;
+	}
+
+	inode *dir_copy_inode = NULL;
+	int ret = search_inode(dir_parent, &dir_copy_inode);
+
+	if (ret != EXIT_SUCCESS) {
+		fprintf(stderr, PARENT_DIRECTORY_NOT_FOUND);
+		return -ENOENT;
+	} else if (!dir_copy_inode->dir) {
+		fprintf(stderr, PARENT_INODE_NOT_DIRECTORY);
+		return -ENOENT;
+	} else if (dir_copy_inode->dir->size >= MAX_DENTRIES) {
+		fprintf(stderr, PARENT_DIRECTORY_FULL);
+		return -ENOSPC;
+	} else {
+		for (int i = 0; i < dir_copy_inode->dir->size; i++) {
+			if (strcmp(dir_copy_inode->dir->entries[i]->nombre,
+			           new_file) == 0) {
+				fprintf(stderr, FILE_ALREADY_EXISTS, new_file);
+				return -EEXIST;
+			}
+		}
+	}
+
+	dir_copy_inode->mtime = time(NULL);
+	inode_dir *directory = dir_copy_inode->dir;
+
+	dentry *new_entry = malloc(sizeof(dentry));
+	strncpy(new_entry->nombre, new_file, MAX_FILENAME - 1);
+	new_entry->nombre[MAX_FILENAME - 1] = '\0';
+
+
+	new_entry->inode = malloc(sizeof(inode));
+	new_entry->inode->file = malloc(sizeof(inode_file));
+	new_entry->inode->dir = NULL;
+
+	new_entry->inode->mode =
+	        __S_IFREG |
+	        mode;  // Set mode to regular file with specified permissions
+	new_entry->inode->nlink = 1;  // New file has 1 link (itself)
+	new_entry->inode->uid = getuid();
+	new_entry->inode->gid = getgid();
+	new_entry->inode->atime = time(NULL);
+	new_entry->inode->mtime = time(NULL);
+	new_entry->inode->ctime = time(NULL);
+	new_entry->inode->size = strlen(new_entry->inode->file->content);
+
+
+	new_entry->inode->file->content[0] = '\0';
+
+
+	directory->entries[directory->size] = new_entry;
+	directory->size++;
+	return EXIT_SUCCESS;
+}
+
+int
+filesystem_read(const char *path,
+                char *buf,
+                size_t size,
+                off_t offset,
+                struct fuse_file_info *fi)
+{
+	inode *inode = NULL;
+	int ret = search_inode(path, &inode);
+	if (ret != EXIT_SUCCESS) {
+		fprintf(stderr, INODE_NOT_FOUND);
+		return -ENOENT;
+	} else if (!inode->file) {
+		fprintf(stderr, INODE_NOT_FILE);
+		return -ENOENT;
+	}
+
+	if (offset < 0 || offset > inode->size) {
+		fprintf(stderr, OFFSET_OUT_OF_BOUNDS);
+		return -EINVAL;
+	}
+
+	size_t bytes_to_read = inode->size - offset;
+	if (bytes_to_read >= size) {
+		bytes_to_read = size;
+	}
+
+	memcpy(buf, inode->file->content + offset, bytes_to_read);
+	buf[bytes_to_read] = '\0';
+	inode->atime = time(NULL);
+	return bytes_to_read;
+}
+
+int
+filesystem_write(const char *path,
+                 const char *buf,
+                 size_t size,
+                 off_t offset,
+                 struct fuse_file_info *fi)
+{
+	inode *inode = NULL;
+	int ret = search_inode(path, &inode);
+	if (ret != EXIT_SUCCESS) {
+		fprintf(stderr, INODE_NOT_FOUND);
+		return -ENOENT;
+	} else if (!inode->file) {
+		fprintf(stderr, INODE_NOT_FILE);
+		return -ENOENT;
+	}
+	if (offset < 0 || offset > inode->size) {
+		fprintf(stderr, OFFSET_OUT_OF_BOUNDS);
+		return -EINVAL;
+	}
+
+	if (offset + size > CONTENT_SIZE) {
+		fprintf(stderr, WRITE_EXCEEDS_SIZE);
+		return -ENOSPC;
+	}
+
+	memcpy(inode->file->content + offset, buf, size);
+
+	inode->size += size;
+
+	return size;
+}
+
+int
+filesystem_unlink(const char *path)
+{
+	char file[MAX_FILENAME];
+	char parent_dir[PATH_MAX];
+
+	if (split_parent_child(path, parent_dir, file) != EXIT_SUCCESS) {
+		return -ENOENT;
+	}
+
+	inode *parent = NULL;
+	int ret = search_inode(parent_dir, &parent);
+	if (ret != EXIT_SUCCESS) {
+		fprintf(stderr, PARENT_DIRECTORY_NOT_FOUND);
+		return -ENOENT;
+	} else if (!parent->dir) {
+		fprintf(stderr, PARENT_INODE_NOT_DIRECTORY);
+		return -ENOENT;
+	}
+
+	dentry *file_to_remove = NULL;
+	int found = 0;
+	for (int i = 0; i < parent->dir->size; i++) {
+		if (strcmp(parent->dir->entries[i]->nombre, file) == 0) {
+			file_to_remove = parent->dir->entries[i];
+			found = i;
+			break;
+		}
+	}
+	if (file_to_remove == NULL || file_to_remove->inode->file == NULL ||
+	    file_to_remove->inode->dir != NULL) {
+		fprintf(stderr, INODE_NOT_FOUND, path);
+		return -ENOENT;
+	}
+
+	parent->mtime = time(NULL);
+	for (int j = found; j < parent->dir->size - 1; j++) {
+		parent->dir->entries[j] = parent->dir->entries[j + 1];
+	}
+	parent->dir->size--;
+
+	// TODO: ADD COMMENT
+	free(file_to_remove->inode->file);
+	free(file_to_remove->inode);
+	free(file_to_remove);
+
 	return EXIT_SUCCESS;
 }
 

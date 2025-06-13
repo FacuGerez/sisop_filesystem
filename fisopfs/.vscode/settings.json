@@ -8,6 +8,7 @@
         "types.h": "c",
         "stdbool.h": "c",
         "limits.h": "c",
-        "fuse.h": "c"
+        "fuse.h": "c",
+        "initializer_list": "c"
     }
 }

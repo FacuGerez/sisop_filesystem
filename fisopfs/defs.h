@@ -11,7 +11,7 @@
 typedef struct inode inode;
 
 typedef struct dentry {
-	char filename[MAX_FILENAME];
+	char nombre[MAX_FILENAME];
 	inode *inode;
 } dentry;
 
@@ -20,37 +20,26 @@ typedef struct inode_file {
 } inode_file;
 
 typedef struct inode_dir {
-	dentry *dentries[MAX_DENTRIES];  // Entradas del directorio
-	int size;                        // Número de entradas en el directorio
+	dentry *entries[MAX_DENTRIES];
+	int size;
 } inode_dir;
 
 typedef struct inode {
-	inode_file *file;  // Contenido del archivo o null si es un directorio
-	inode_dir *dir;    // Contenido del directorio o null si es un archivo
-	                   // .....
-	// 👇 Campos necesarios para getattr:
-	mode_t mode;    // Tipo y permisos
-	nlink_t nlink;  // Número de enlaces (2 para directorio, 1 para archivo)
-	uid_t uid;      // UID del dueño (usualmente getuid())
-	gid_t gid;      // GID del grupo (usualmente getgid())
-	time_t atime;   // Último acceso
-	time_t mtime;   // Última modificación
-	time_t ctime;   // Creación
-	off_t size;     // Tamaño en bytes (para archivos) o 0 para directorios
+	inode_file *file;  	// Inode file or null if it is a directory
+	inode_dir *dir;    	// Inode directory or null if it is a file
+	mode_t mode;    	// Type and permissions of this inodes
+	nlink_t nlink;  	// Number of links (2 for directory, 1 for file)
+	uid_t uid;      	// UID of the owner
+	gid_t gid;      	// GID of the group owner
+	time_t atime;   	// Last access time
+	time_t mtime;   	// Last modification time
+	time_t ctime;   	// Creation time
+	off_t size;     	// Size in bytes/chars for files or 0 for directories
 } inode;
 
-/*
-typedef struct superblock {
-    int inodes_count; // Número total de inodos
-    int blocks_count; // Número total de bloques
-    int free_inodes; // Inodos libres
-    int free_blocks; // Bloques libres
-} superblock_t;
-*/
-
-// El sistema de archivos desde la raiz
+// Filesystem structure
 typedef struct filesystem {
-	inode *root;  // Inodo raíz del sistema de archivos
+	inode *root;  // Inode root for the filesystem
 } filesystem;
 
 #endif

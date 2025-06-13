@@ -6,7 +6,7 @@
 #include "defs.h"
 #include "operations.h"
 
-// Variables globales
+// Global variables
 char *filedisk = DEFAULT_FILE_DISK;
 filesystem fs;
 
@@ -15,12 +15,12 @@ static struct fuse_operations operations = {
 	.getattr = filesystem_getattr,
 	.mkdir = filesystem_mkdir,
 	.readdir = filesystem_readdir,
-	//.unlink = filesystem_unlink,
 	.rmdir = filesystem_rmdir,
-	//.create = filesystem_create,
-	//.open = filesystem_open,
-	//.write = filesystem_write,
-	//.read = filesystem_read,
+	.utimens = filesystem_utimens,
+	.create = filesystem_create,
+	.write = filesystem_write,
+	.read = filesystem_read,
+	.unlink = filesystem_unlink,
 	.destroy = filesystem_destroy,  // Called on flush.
 };
 
