@@ -3,7 +3,7 @@
 
 #include <sys/types.h>
 
-#define CONTENT_SIZE 1024
+#define MAX_CONTENT_SIZE 1024
 #define MAX_DENTRIES 128
 #define MAX_FILENAME 256
 #define DEFAULT_FILE_DISK "persistence_file.fisopfs"
@@ -16,7 +16,7 @@ typedef struct dentry {
 } dentry;
 
 typedef struct inode_file {
-	char content[CONTENT_SIZE];
+	char content[MAX_CONTENT_SIZE];
 } inode_file;
 
 typedef struct inode_dir {

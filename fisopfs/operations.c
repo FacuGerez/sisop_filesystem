@@ -338,7 +338,6 @@ filesystem_rmdir(const char *path)
 	return EXIT_SUCCESS;
 }
 
-
 int
 filesystem_utimens(const char *path, const struct timespec tv[2])
 {
@@ -397,6 +396,7 @@ filesystem_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 
 	new_entry->inode = malloc(sizeof(inode));
 	new_entry->inode->file = malloc(sizeof(inode_file));
+	memset(new_entry->inode->file->content, 0, MAX_CONTENT_SIZE);
 	new_entry->inode->dir = NULL;
 
 	new_entry->inode->mode =
@@ -408,8 +408,7 @@ filesystem_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 	new_entry->inode->atime = time(NULL);
 	new_entry->inode->mtime = time(NULL);
 	new_entry->inode->ctime = time(NULL);
-	new_entry->inode->size = (off_t) strlen(new_entry->inode->file->content);
-
+	new_entry->inode->size = 0;
 
 	new_entry->inode->file->content[0] = '\0';
 
@@ -442,15 +441,31 @@ filesystem_read(const char *path,
 	}
 
 	size_t bytes_to_read = inode->size - offset;
-	if (bytes_to_read >= size) {
+	if (bytes_to_read > size) {
 		bytes_to_read = size;
 	}
 
 	memcpy(buf, inode->file->content + offset, bytes_to_read);
-	buf[bytes_to_read] = '\0';
 	inode->atime = time(NULL);
 	return (int) bytes_to_read;
 }
+
+
+int
+filesystem_open(const char *path, struct fuse_file_info *fi)
+{
+	inode *inode = NULL;
+	int ret = search_inode(path, &inode);
+	if (ret != EXIT_SUCCESS) {
+		fprintf(stderr, INODE_NOT_FOUND, path);
+		return -ENOENT;
+	} else if (!inode->file) {
+		fprintf(stderr, INODE_NOT_FILE);
+		return -ENOENT;
+	}
+	return EXIT_SUCCESS;
+}
+
 
 int
 filesystem_write(const char *path,
@@ -468,21 +483,64 @@ filesystem_write(const char *path,
 		fprintf(stderr, INODE_NOT_FILE);
 		return -ENOENT;
 	}
-	if (offset < 0 || offset > inode->size) {
+	if (offset < 0 || offset > MAX_CONTENT_SIZE) {
 		fprintf(stderr, OFFSET_OUT_OF_BOUNDS);
 		return -EINVAL;
 	}
 
-	if (offset + size > CONTENT_SIZE) {
+	if (offset + size > MAX_CONTENT_SIZE) {
 		fprintf(stderr, WRITE_EXCEEDS_SIZE);
 		return -ENOSPC;
 	}
 
+	if (offset > inode->size) {
+		memset(inode->file->content + inode->size, 0, offset - inode->size);
+	}
+
 	memcpy(inode->file->content + offset, buf, size);
 
-	inode->size += (off_t) size;
+	off_t end_offset = offset + size;
+	if (end_offset > inode->size) {
+		inode->size = end_offset;
+	}
+
+	inode->mtime = time(NULL);
+	inode->ctime = time(NULL);
 
 	return (int) size;
+}
+
+int
+filesystem_truncate(const char *path, off_t size)
+{
+	inode *inode = NULL;
+	int ret = search_inode(path, &inode);
+
+	if (ret != EXIT_SUCCESS) {
+		fprintf(stderr, INODE_NOT_FOUND, path);
+		return -ENOENT;
+	} else if (!inode->file) {
+		fprintf(stderr, INODE_NOT_FILE);
+		return -ENOENT;
+	}
+
+	if (size < 0 || size > MAX_CONTENT_SIZE) {
+		return -EINVAL;
+	}
+
+	if (size < inode->size) {
+		for (off_t i = size; i < MAX_CONTENT_SIZE; i++) {
+			inode->file->content[i] = '\0';
+		}
+	}
+
+	if (size > inode->size) {
+		memset(inode->file->content + inode->size, 0, size - inode->size);
+	}
+
+	inode->size = size;
+	inode->mtime = time(NULL);
+	return 0;
 }
 
 int

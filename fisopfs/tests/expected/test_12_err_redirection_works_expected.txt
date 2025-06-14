@@ -1,0 +1,2 @@
+errorfile
+cat: moms_spaghetti: No such file or directory

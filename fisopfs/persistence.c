@@ -42,7 +42,7 @@ serialize_inode(FILE *file, const inode *node)
 	fwrite(&node->size, sizeof(off_t), 1, file);
 
 	if (node->file != NULL) {
-		fwrite(node->file->content, 1, CONTENT_SIZE, file);
+		fwrite(node->file->content, 1, MAX_CONTENT_SIZE, file);
 	} else {
 		fwrite(&node->dir->size, sizeof(int), 1, file);
 		for (int i = 0; i < node->dir->size; ++i) {
@@ -78,7 +78,7 @@ deserialize_inode(FILE *file)
 	if (type == FILE_INDICATOR) {
 		node->file = malloc(sizeof(inode_file));
 		node->dir = NULL;
-		fread_checked(node->file->content, 1, CONTENT_SIZE, file);
+		fread_checked(node->file->content, 1, MAX_CONTENT_SIZE, file);
 	} else {
 		node->file = NULL;
 		node->dir = malloc(sizeof(inode_dir));
