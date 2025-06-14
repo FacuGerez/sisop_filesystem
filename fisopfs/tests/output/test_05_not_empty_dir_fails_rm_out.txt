@@ -1,0 +1,3 @@
+rmdir: failed to remove 'tests/mount/testdir': Directory not empty
+testdir
+testfile
