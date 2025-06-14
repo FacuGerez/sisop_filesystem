@@ -53,3 +53,6 @@ Como detalle que nos gustaría agregar para comentar es el update de modify_time
 
 [Fuente2](https://serverfault.com/questions/388050/does-directory-mtime-always-change-when-a-new-file-is-created-inside)
 
+## Tests
+
+Aclaración importante: los tests pueden llegar a diferir según el idioma en el que se tenga el sistema operativo, pero en caso de que suceda, de ver la salida esperada contra la salida obtenida va ser notorio que es solo una cuestión idiomática.
