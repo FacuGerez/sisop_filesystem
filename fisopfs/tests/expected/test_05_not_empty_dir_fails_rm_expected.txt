@@ -1,2 +1,3 @@
+rmdir: fallo al borrar 'tests/mount/testdir': El directorio no está vacío
 testdir
 testfile
