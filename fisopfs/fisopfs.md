@@ -56,3 +56,121 @@ Como detalle que nos gustaría agregar para comentar es el update de modify_time
 ## Tests
 
 Aclaración importante: los tests pueden llegar a diferir según el idioma en el que se tenga el sistema operativo, pero en caso de que suceda, de ver la salida esperada contra la salida obtenida va ser notorio que es solo una cuestión idiomática.
+
+### Explicación breve de caso probado y salida esperada
+
+#### Test 1
+
+Prueba que al crear un directorio se cree correctamente
+
+```
+testdir
+```
+
+#### Test 2
+
+Prueba que al crear un directorio dentro de otro se cree correctamente.
+
+```
+testdir
+nested_dir
+```
+
+#### Test 3
+
+Prueba que al querer borrar un directorio vacío se borre correctamente
+
+```
+testdir
+```
+
+#### Test 4
+
+Prueba que al crear un archivo se cree correctamente.
+
+```
+testfile
+```
+
+#### Test 5
+
+Prueba que al querer borrar un directorio no vacío no se borre
+
+```
+rmdir: failed to remove 'tests/mount/testdir': Directory not empty
+testdir
+testfile
+```
+
+#### Test 6
+
+Prueba que al borrar un archivo efectivamente se borre
+
+```
+testfile
+```
+
+#### Test 7
+
+Prueba que al querer borrar varios archivos de un mismo directorio se borren
+
+```
+testfile1
+testfile2
+```
+
+#### Test 8
+
+Prueba que la creación de un archivo nuevo con redirección utilizando el comando echo funcione
+
+```
+testfile
+```
+
+#### Test 9
+
+Prueba que al crear un archivo con echo el contenido sea el esperado
+
+```
+hello world
+```
+
+#### Test 10
+
+Prueba que al redirigir texto a un archivo ya creado se pise el contenido previo
+
+```
+goodbye
+```
+
+#### Test 11
+
+Prueba que la redirección de un archivo hacia un cat funcione correctamente
+
+```
+hello world
+```
+
+#### Test 12
+
+Prueba que la modificación de un archivo utilizando un >> (append) funcione correctamente
+
+```
+first
+second
+```
+
+#### Test 13
+
+Prueba que al querer mirar las estadisticas de una archivo funcione correctamente
+
+```
+File
+Size
+Device
+Access
+Access
+Modify
+Change
+Birth
+```
